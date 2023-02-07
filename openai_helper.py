@@ -4,13 +4,10 @@ import os
 import openai
 from dotenv import load_dotenv
 load_dotenv()
-openai.api_key = os.environ.get("OPENAI_KEY")
+openai.api_key = os.environ.get("OPENAI_KEY") # It's not good practice to hardcode your API key. Add it to .env per the README instructions.
 moderation_endpoint_url = "https://api.openai.com/v1/moderations"
 
-# Query moderation endpoint and return either True or False for flagged - useful for OpenAI content policy enforcement
-# If it's flagged, you should not send it to OpenAI using get_gpt_response. See https://platform.openai.com/docs/guides/moderation/overview
-# for more information and what the response data actually looks like.
-def get_moderation_results(input):
+def get_moderation_response(input):
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {openai.api_key}"
@@ -20,28 +17,32 @@ def get_moderation_results(input):
     response_data = response.json()
     return response_data['results'][0]['flagged']
 
-# Content filter endpoint. This returns either a 0, 1, or 2. A 0 or 1 signifies clean or "potentially harmful" content.
-# A 0 or 1 should be accepted without scrutiny. A 2, however, signifies harmful content, but can be checked to ensure
-# that the AI got it right. See https://platform.openai.com/docs/models/content-filter for more information.
-def get_filter_results(input):
+def get_filter_response(input):
     response = openai.Completion.create(
         model="content-filter-alpha",
-        prompt = f"<|endoftext|>{input}\n--\nLabel:",
-        temperature=0,
-        max_tokens=1,
-        top_p=0,
-        logprobs=10
+        prompt = f"<|endoftext|>{input}\n--\nLabel:", # This format is required, do not change
+        temperature=0, # Doesn't need to be modified
+        max_tokens=1, # Doesn't need to be modified - only returns a single integer
+        top_p=0, # See docs for explanation
+        logprobs=10 # See docs for explanation
     )
 
     return response.choices[0].text
 
-# Queries GPT-3's Davinci model. The cost is $0.02 per 1000 tokens. Max_tokens can be up to 4000 tokens. You can also use
-# different models. See https://platform.openai.com/docs/models/overview for more information and use cases.
 def get_gpt_response(input):
     response = openai.Completion.create(
-    model="text-davinci-003",
+    model="text-davinci-003", # Other models available which may be cheaper, see docs for more information
     prompt=input,
-    max_tokens=800,
-    temperature=0.5,
+    max_tokens=800, # Max tokens allowed - up to 4000 for Davinci, see docs for more information
+    temperature=0.5, # See docs for explanation
     )
     return response.choices[0].text
+
+# 
+def get_img_response(input):
+    response = openai.Image.create(
+            prompt = input,
+            n=1, # Number of created images - up to 10
+            size="1024x1024" # Image resolution - must be 1024x1024, 512x512, or 256x256 only
+        )
+    return response['data'][0]['url'] # Returns temporary URL of image
